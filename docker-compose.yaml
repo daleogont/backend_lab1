@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  my-node-app:
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3000"
+    ports:
+      - "8080:3000"
