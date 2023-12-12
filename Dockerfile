@@ -6,5 +6,5 @@ RUN npm install
 
 COPY . .
 
-CMD ["node", "app.js"]  # Оновлено шлях до app.js
+CMD ["node", "app.js"]  
 
