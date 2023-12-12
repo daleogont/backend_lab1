@@ -7,6 +7,6 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      PORT: "3000"
+      PORT: "10000"
     ports:
-      - "8080:3000"
+      - "8080:10000"
