@@ -6,4 +6,5 @@ RUN npm install
 
 COPY . .
 
-CMD ["node", "routes/index.js"]
+CMD ["node", "app.js"]  # Оновлено шлях до app.js
+
