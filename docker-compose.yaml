@@ -9,4 +9,4 @@ services:
     environment:
       PORT: "10000"
     ports:
-      - "8080:10000"
+      - "10000:10000"
