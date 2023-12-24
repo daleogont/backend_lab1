@@ -15,12 +15,12 @@ router.post('/user', (req,res) =>{
   }
 
  const user_id = uuidv4();
- const message = "User successfuly created"
+ const message1 = "User successfuly created";
 
   const user = {
       user_id,
       user_name,
-      message
+      message1
 
   };
   users.push(user);
@@ -57,7 +57,58 @@ router.delete('/user/:user_id', (req, res) => {
   res.status(200).json(delU);
 });
 
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>//
 
+router.post('/category', (req, res) => {
+  const {cat_name} = req.body;
+
+  if (!cat_name){
+      return res.status(400).json({error: 'Name is required'})
+  }
+
+  const cat_id = uuidv4();
+  const message2 = "Category successfuly created";
+
+  const category = {
+      cat_id,
+      cat_name,
+      message2
+  };
+  categories.push(category);
+
+  res.status(201).json(category);
+});
+
+router.get('/categories', (req, res) => {
+  res.status(200).json(categories)
+});
+
+router.get('/category/:cat_id', (req, res) =>{
+  const cId = req.params.cat_id;
+
+  const curCat = categories.find(category => category.cat_id === cId);
+
+  if (!curCat){
+      return res.status(404).json({error: 'No category with such cat_id'})
+  }
+  res.status(200).json(curCat);
+});
+
+router.delete('/category/:cat_id', (req, res) => {
+  const cId = req.params.cat_id;
+
+  const curCat = categories.find(category => category.cat_id === cId);
+
+  if (!curCat){
+      return res.status(404).json({error: 'No category with such cat_id'})
+  }
+
+  const delC = categories.splice(curCat, 1)[0];
+
+  res.status(200).json(delC);
+});
+
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>//
 
 
 
