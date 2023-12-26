@@ -11,7 +11,7 @@ const {Wallet} = require('../models/index');
 
 const { userPostSchema,  userGetSchema} = require('../schemas/user_schema');
 const { categoryPostSchema, categoryGetSchema } = require('../schemas/category_schema');
-const recordSchema = require('../schemas/record_sсhema');
+const recordSchema = require('../schemas/regit pushcord_sсhema');
 const { walletPostSchema, walletGetSchema, walletRaiseSchema } = require('../schemas/wallet_schema');
 
 
