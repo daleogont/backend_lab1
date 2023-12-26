@@ -8,6 +8,13 @@ const {Category} = require('../models/index');
 const {Record} = require('../models/index');
 const {Wallet} = require('../models/index');
 
+
+const { userPostSchema,  userGetSchema} = require('../schemas/user_schema');
+const { categoryPostSchema, categoryGetSchema } = require('../schemas/category_schema');
+const recordSchema = require('../schemas/record_schema');
+const { walletPostSchema, walletGetSchema, walletRaiseSchema } = require('../schemas/wallet_schema');
+
+
 router.post('/user', async (req, res) => {
   const { user_name } = req.body;
 
@@ -86,12 +93,12 @@ router.delete('/user/:user_id', async (req, res) => {
     res.status(500).json({ message: 'Server Malfunction' });
   }
 });
-//>>>>>>>>>>>>>>>>>>2>>>>>>>>>>>>>//
+
 router.post('/category', async (req, res) => {
   try {
     const { cat_name } = req.body;
 
-    const validationResult = categoryPostSchema.validate({ cat_name });
+    const validationResult = categoryPostSchema.validate({ cat_name });  
 
     if (validationResult.error) {
       return res.status(400).json({message: validationResult.error.details[0].message });
@@ -169,8 +176,6 @@ router.delete('/category/:cat_id', async (req, res) => {
   }
 });
 
-
-//>>>>>>>>>>>>>>>>3>>>>>>>>>>>>>>>//
 router.post('/record', async (req, res) => {
   const { user_id, cat_id, amount } = req.body;
 
@@ -269,7 +274,6 @@ router.get('/record', async (req, res) => {
     }
   });
 
-//>>>>>>>>>>>>>>>>End>>>>>>>>>>>>>>>//
 router.post('/wallet', async (req, res) => {
   const { user_id } = req.body;
 
@@ -394,7 +398,6 @@ router.delete('/wallet/:user_id', async (req, res) => {
   }
 });
 
-//>>>>>>>>>>>>>>>>>>2>>>>>>>>>>>>>//
 router.get('/healthcheck', (req, res) => {
  
   const currentDate = new Date();
