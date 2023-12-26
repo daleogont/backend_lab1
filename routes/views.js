@@ -1,62 +1,89 @@
 const express = require('express');
-const router = express.Router();
 const {v4: uuidv4} = require('uuid');
+const {sequelize} = require('sequelize');
+const router = express.Router();
 
-const users = [];
-const categories = [];
-const records = [];
+const {User} = require('../models/index');
+const {Category} = require('../models/index');
 
-
-router.post('/user', (req,res) =>{
+outer.post('/user', async (req, res) => {
   const { user_name } = req.body;
 
-  if (!user_name){
-      return res.status(400).json({message: 'username section can not be empty'})
+  const validationResult = userPostSchema.validate({ user_name });
+
+  if (validationResult.error) {
+      return res.status(400).json({ message: validationResult.error.details[0].message });
   }
 
- const user_id = uuidv4();
- const message1 = "User successfuly created";
-
-  const user = {
-      user_id,
-      user_name,
-      message1
-
-  };
-  users.push(user);
-
-  res.status(201).json(user);
+  try {
+      const user = await User.create({ user_name });
+      res.status(201).json(user);
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server Malfunction' });
+  }
 });
 
-router.get('/users', (req, res) => {
-  res.status(200).json(users)
+router.get('/users', async (req, res) => {
+  try {
+    const users = await User.findAll();
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Server Malfunction' });
+  }
 });
 
-router.get('/user/:user_id', (req, res) => {
+
+router.get('/user/:user_id', async (req, res) => {
   const uId = req.params.user_id;
 
-  const curUser = users.find(user => user.user_id === uId);
+  const validationResult = userGetSchema.validate({ uId });
 
-  if (!curUser){
-      return res.status(404).json({message: 'user_id is invalid'})
+      if (validationResult.error) {
+          return res.status(400).json({ message: validationResult.error.details[0].message });
+      }
+
+
+  try {
+      const curUser = await User.findByPk(uId);
+
+      if (!curUser) {
+          return res.status(404).json({ message: 'invalid user_id' });
+      }
+
+      res.status(200).json(curUser);
+  } catch (error) {
+      console.error(`Error fetching user with user_id ${uId}:`, error);
+      res.status(500).json({ message: 'Server Malfunction' });
   }
-  res.status(200).json(curUser);
 });
 
-router.delete('/user/:user_id', (req, res) => {
+router.delete('/user/:user_id', async (req, res) => {
   const uId = req.params.user_id;
 
-  const curUser = users.find(user => user.user_id === String(uId));
+  const validationResult = userGetSchema.validate({ uId });
 
-  if (!curUser){
-      return res.status(404).json({message: 'user_id is invalid '})
+  if (validationResult.error) {
+      return res.status(400).json({ message: validationResult.error.details[0].message });
   }
 
-  const delU = users.splice(curUser, 1)[0];
+  try {
+    const deletedUser = await User.findByPk(uId);
 
-  res.status(200).json(delU);
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'Invalid user_id' });
+    }
+
+    await deletedUser.destroy();
+
+    res.status(200).json(deletedUser);
+  } catch (error) {
+    console.error(`Error with deleting user and user_id ${uId}:`, error);
+    res.status(500).json({ message: 'Server Malfunction' });
+  }
 });
-
 //>>>>>>>>>>>>>>>>>>2>>>>>>>>>>>>>//
 
 router.post('/category', (req, res) => {
