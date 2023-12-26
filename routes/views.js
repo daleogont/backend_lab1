@@ -5,8 +5,9 @@ const router = express.Router();
 
 const {User} = require('../models/index');
 const {Category} = require('../models/index');
+const {Record} = require('../models/index');
 
-outer.post('/user', async (req, res) => {
+router.post('/user', async (req, res) => {
   const { user_name } = req.body;
 
   const validationResult = userPostSchema.validate({ user_name });
@@ -85,105 +86,191 @@ router.delete('/user/:user_id', async (req, res) => {
   }
 });
 //>>>>>>>>>>>>>>>>>>2>>>>>>>>>>>>>//
+router.post('/category', async (req, res) => {
+  try {
+    const { cat_name } = req.body;
 
-router.post('/category', (req, res) => {
-  const {cat_name} = req.body;
+    const validationResult = categoryPostSchema.validate({ cat_name });
 
-  if (!cat_name){
-      return res.status(400).json({error: 'category_name section can not be empty'})
+    if (validationResult.error) {
+      return res.status(400).json({ error: validationResult.error.details[0].message });
   }
 
-  const cat_id = uuidv4();
-  const message2 = "Category successfuly created";
-
-  const category = {
-      cat_id,
+    
+    const category = await Category.create({
       cat_name,
-      message2
-  };
-  categories.push(category);
+    });
 
-  res.status(201).json(category);
+    res.status(201).json(category);
+  } catch (error) {
+    console.error('Failure creating category:', error);
+    res.status(500).json({ error: 'Server Malfunction' });
+  }
 });
 
-router.get('/categories', (req, res) => {
-  res.status(200).json(categories)
+router.get('/categories', async (req, res) => {
+  
+  try {
+    const categories = await Category.findAll();
+
+    res.status(200).json(categories);
+  } catch (error) {
+    console.error('Failure fetching categories:', error);
+    res.status(500).json({ error: 'Server Malfunction' });
+  }
 });
 
-router.get('/category/:cat_id', (req, res) =>{
+router.get('/category/:cat_id', async (req, res) => {
   const cId = req.params.cat_id;
 
-  const curCat = categories.find(category => category.cat_id === cId);
+  const validationResult = categoryGetSchema.validate({ cat_id });
 
-  if (!curCat){
-      return res.status(404).json({error: 'cat_id is invalid'})
+    if (validationResult.error) {
+      return res.status(400).json({ error: validationResult.error.details[0].message });
   }
-  res.status(200).json(curCat);
+
+  try {
+    const curCat = await Category.findByPk(cId);
+
+    if (!curCat) {
+      return res.status(404).json({ error: 'Invalid cat_id' });
+    }
+
+    res.status(200).json(curCat);
+  } catch (error) {
+    console.error(`Error fetching category with cat_id ${cId}:`, error);
+    res.status(500).json({ error: 'Server Malfunction' });
+  }
 });
 
-router.delete('/category/:cat_id', (req, res) => {
+router.delete('/category/:cat_id', async (req, res) => {
   const cId = req.params.cat_id;
 
-  const curCat = categories.find(category => category.cat_id === cId);
+  const validationResult = categoryGetSchema.validate({ cat_id });
 
-  if (!curCat){
-      return res.status(404).json({error: 'cat_id is invalid'})
+    if (validationResult.error) {
+      return res.status(400).json({ error: validationResult.error.details[0].message });
   }
 
-  const delC = categories.splice(curCat, 1)[0];
+  try {
+    const deletedCategory = await Category.findByPk(cId);
 
-  res.status(200).json(delC);
+    if (!deletedCategory) {
+      return res.status(404).json({ error: 'Invalid cat_id' });
+    }
+
+    await deletedCategory.destroy();
+
+    res.status(200).json(deletedCategory);
+  } catch (error) {
+    console.error(`Failure deleting category with cat_id ${cId}:`, error);
+    res.status(500).json({ error: 'Server Malfunction' });
+  }
 });
+
 
 //>>>>>>>>>>>>>>>>3>>>>>>>>>>>>>>>//
+router.post('/record', async (req, res) => {
+  const { user_id, cat_id, amount } = req.body;
 
-router.post('/record', (req, res) => {
-  const { uId, cId, amount } = req.body;
+  const validationResult = recordSchema.validate({ user_id, cat_id, amount });
 
-  const userExists = users.some(user => user.user_id === uId);
-  const categoryExists = categories.some(category => category.cat_id === cId);
-
-  if (!userExists || !categoryExists) {
-    return res.status(400).json({ error: 'Invalid user_id or cat_id' });
+  if (validationResult.error) {
+    return res.status(400).json({ error: validationResult.error.details[0].message });
   }
 
-  const rec_id = uuidv4();
-  const record = { rec_id, uId, cId, amount };
-  records.push(record);
+  try {
+    const user = await User.findByPk(user_id);
+    const category = await Category.findByPk(cat_id);
 
-  res.status(201).json(record);
-});
+    if (!user || !category) {
+      return res.status(400).json({ error: 'Invalid input' });
+    }
 
-router.get('/records', (req, res) => {
-  res.status(200).json(records);
-});
+    const record = await Record.create({
+      user_id,
+      cat_id,
+      amount,
+    });
 
-router.get('/record', (req, res) => {
-  const { uId, cId } = req.query;
+    const wallet = await Wallet.findOne({
+      where: { user_id },
+    });
 
-  const filteredRecords = records.filter(record =>
-    (!uId || record.uId === uId) &&
-    (!cId || record.cId === cId)
-  );
+    if (!wallet) {
+      return res.status(400).json({ error: 'Wallet not found' });
+    }
 
-  res.status(200).json(filteredRecords);
-});
+    wallet.balance -= amount;
+    await wallet.save();
 
-router.delete('/record/:rec_id', (req, res) => {
-  const { rec_id } = req.params;
-  const index = records.findIndex(record => record.rec_id === rec_id);
-
-  if (index === -1) {
-    return res.status(404).json({ error: 'rec_id is invalid' });
+    res.status(201).json(record);
+  } catch (error) {
+    console.error('Failure creating record:', error);
+    res.status(500).json({ error: 'Server Malfunction' });
   }
-
-  const deletedRecord = records.splice(index, 1)[0];
-  res.status(200).json(deletedRecord);
 });
+
+
+router.get('/records', async (req, res) => {
+    
+  try {
+    const records = await Record.findAll();
+
+    res.status(200).json(records);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Server Malfunction' });
+  }
+});
+
+router.get('/record', async (req, res) => {
+  const { user_id, cat_id } = req.query;
+
+  try {
+
+    const whereClause = {};
+    if (user_id) { 
+      whereClause.user_id = user_id; 
+    }
+    if (cat_id) { 
+      whereClause.cat_id = cat_id; 
+    }
+
+    const filteredRecords = await Record.findAll({
+      where: whereClause,
+    });
+
+    res.status(200).json(filteredRecords);
+  } catch (error) {
+    console.error('Error fetching records:', error);
+    res.status(500).json({ error: 'Server Malfunction' });
+  }
+});
+
+  router.delete('/record/:rec_id', async (req, res) => {
+    const rec_id = req.params.rec_id;
+  
+    try {
+      
+      const deletedRecord = await Record.findByPk(rec_id);
+  
+      if (!deletedRecord) {
+        return res.status(404).json({ error: 'Invalid rec_id' });
+      }
+  
+      await deletedRecord.destroy();
+  
+      res.status(200).json(deletedRecord);
+    } catch (error) {
+      console.error(`Error deleting record with rec_id ${rec}:`, error);
+      res.status(500).json({ error: 'Server Malfunction' });
+    }
+  });
 
 //>>>>>>>>>>>>>>>>End>>>>>>>>>>>>>>>//
 
-
+//>>>>>>>>>>>>>>>>>>2>>>>>>>>>>>>>//
 router.get('/healthcheck', (req, res) => {
  
   const currentDate = new Date();
