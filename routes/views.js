@@ -1,6 +1,8 @@
 const express = require('express');
 const {v4: uuidv4} = require('uuid');
 const {sequelize} = require('sequelize');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 const {User} = require('../models/index');
@@ -11,27 +13,51 @@ const {Wallet} = require('../models/index');
 
 const { userPostSchema,  userGetSchema} = require('../schemas/user_schema');
 const { categoryPostSchema, categoryGetSchema } = require('../schemas/category_schema');
-const recordSchema = require('../schemas/record_sсhema');
+const recordSchema = require('../');
 const { walletPostSchema, walletGetSchema, walletRaiseSchema } = require('../schemas/wallet_schema');
 
-
-router.post('/user', async (req, res) => {
-  const { user_name } = req.body;
-
-  const validationResult = userPostSchema.validate({ user_name });
-
-  if (validationResult.error) {
-      return res.status(400).json({ message: validationResult.error.details[0].message });
-  }
+router.post('/signup', async (req, res) => {
+  const { user_name, password } = req.body;
 
   try {
-      const user = await User.create({ user_name });
-      res.status(201).json(user);
+    const existingUser = await User.findOne({ where: { user_name } });
+    if (existingUser) {
+      return res.status(409).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const newUser = await User.create({ user_name, password: hashedPassword });
+
+    res.status(201).json({ message: "User created", user_id: newUser.id });
   } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server Malfunction' });
+    console.error(error);
+    res.status(500).json({ error: 'Server Malfunction' });
   }
 });
+
+router.post('/login', async (req, res) => {
+  const { user_name, password } = req.body;
+
+  try {
+    const user = await User.findOne({ where: { user_name } });
+    if (!user) {
+      return res.status(401).json({ message: "User does not exist" });
+    }
+
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return res.status(401).json({ message: "Incorrect password" });
+    }
+
+    const token = jwt.sign({ user_id: user.id, user_name }, 'jwt_very_secret_key', { expiresIn: '1h' });
+
+    res.status(200).json({ token, userId: user.id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 
 router.get('/users', async (req, res) => {
   try {
@@ -69,30 +95,40 @@ router.get('/user/:user_id', async (req, res) => {
   }
 });
 
-router.delete('/user/:user_id', async (req, res) => {
-  const uId = req.params.user_id;
+router.delete('/user', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
 
-  const validationResult = userGetSchema.validate({ uId });
+  if (!token) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
 
-  if (validationResult.error) {
-      return res.status(400).json({ message: validationResult.error.details[0].message });
+  const decodedToken = decodeToken(token);
+
+  if (!decodedToken || !decodedToken.userId) {
+    return res.status(401).json({ message: 'Invalid token' });
   }
 
   try {
-    const deletedUser = await User.findByPk(uId);
-
-    if (!deletedUser) {
-      return res.status(404).json({ message: 'Invalid user_id' });
+    const user = await User.findByPk(decodedToken.user_id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    await deletedUser.destroy();
-
-    res.status(200).json(deletedUser);
+    await user.destroy();
+    res.status(200).json({ message: 'User deleted' });
   } catch (error) {
-    console.error(`Error with deleting user and user_id ${uId}:`, error);
-    res.status(500).json({ message: 'Server Malfunction' });
+    console.error(error);
+    res.status(500).json({message: 'Server Malfunction' });
   }
 });
+
+const decodeToken = (token) => {
+  try {
+    return jwt.verify(token, 'jwt_very_secret_key'); 
+  } catch (error) {
+    return null;
+  }
+};
 
 router.post('/category', async (req, res) => {
   try {
