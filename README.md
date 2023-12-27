@@ -1,5 +1,5 @@
 # KPI back-end labs
- ## Lab №3
+ ## Lab №4
  ### Variant
 
 15 mod 3 = 0, 0 - Облік доходів
@@ -14,11 +14,11 @@ docker-compose up --build
 
 ```bash
 sudo docker ps -a
-sudo docker exec -it backend_project_3c_postgres_1 psql -U postgres
+sudo docker exec -it (назва вашої корневої діректорії)_postgres_1 psql -U postgres
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 ```
 ```bash
-sudo docker exec -it backend_project_3c_app_1 /bin/bash
+sudo docker exec -it (назва вашої корневої діректорії)_app_1 /bin/bash
 npx sequelize-cli db:migrate
 ```
  
