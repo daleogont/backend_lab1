@@ -13,8 +13,22 @@ const {Wallet} = require('../models/index');
 
 const { userPostSchema,  userGetSchema} = require('../schemas/user_schema');
 const { categoryPostSchema, categoryGetSchema } = require('../schemas/category_schema');
-const recordSchema = require('../');
+const recordSchema = require('../schemas/record_shema');
 const { walletPostSchema, walletGetSchema, walletRaiseSchema } = require('../schemas/wallet_schema');
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return res.status(401).json({ message: 'No authorization header' });
+
+  const token = authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+
+  jwt.verify(token, 'jwt_very_secret_key', (err, user) => {
+    if (err) return res.status(403).json({ message: 'Invalid token' });
+    req.user = user; 
+    next(); 
+  });
+};
 
 router.post('/signup', async (req, res) => {
   const { user_name, password } = req.body;
@@ -28,7 +42,7 @@ router.post('/signup', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
     const newUser = await User.create({ user_name, password: hashedPassword });
 
-    res.status(201).json({ message: "User created", user_id: newUser.id });
+    res.status(201).json({ message: "User created", userId: newUser.id });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server Malfunction' });
@@ -49,7 +63,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
-    const token = jwt.sign({ user_id: user.id, user_name }, 'jwt_very_secret_key', { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user.id }, 'jwt_very_secret_key', { expiresIn: '1h' });
 
     res.status(200).json({ token, userId: user.id });
   } catch (error) {
@@ -58,8 +72,15 @@ router.post('/login', async (req, res) => {
   }
 });
 
+const decodeToken = (token) => {
+  try {
+    return jwt.verify(token, 'jwt_very_secret_key');
+  } catch (error) {
+    return null;
+  }
+};
 
-router.get('/users', async (req, res) => {
+router.get('/users',authenticateToken, async (req, res) => {
   try {
     const users = await User.findAll();
 
@@ -71,7 +92,7 @@ router.get('/users', async (req, res) => {
 });
 
 
-router.get('/user/:user_id', async (req, res) => {
+router.get('/user/:user_id',authenticateToken, async (req, res) => {
   const uId = req.params.user_id;
 
   const validationResult = userGetSchema.validate({ uId });
@@ -95,7 +116,7 @@ router.get('/user/:user_id', async (req, res) => {
   }
 });
 
-router.delete('/user', async (req, res) => {
+router.delete('/user', authenticateToken,async (req, res) => {
   const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
@@ -109,7 +130,7 @@ router.delete('/user', async (req, res) => {
   }
 
   try {
-    const user = await User.findByPk(decodedToken.user_id);
+    const user = await User.findByPk(decodedToken.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -118,19 +139,11 @@ router.delete('/user', async (req, res) => {
     res.status(200).json({ message: 'User deleted' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({message: 'Server Malfunction' });
+    res.status(500).json({ message: 'Server Malfunction' });
   }
 });
 
-const decodeToken = (token) => {
-  try {
-    return jwt.verify(token, 'jwt_very_secret_key'); 
-  } catch (error) {
-    return null;
-  }
-};
-
-router.post('/category', async (req, res) => {
+router.post('/category', authenticateToken,async (req, res) => {
   try {
     const { cat_name } = req.body;
 
@@ -152,7 +165,7 @@ router.post('/category', async (req, res) => {
   }
 });
 
-router.get('/categories', async (req, res) => {
+router.get('/categories', authenticateToken,async (req, res) => {
   
   try {
     const categories = await Category.findAll();
@@ -164,7 +177,7 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-router.get('/category/:cat_id', async (req, res) => {
+router.get('/category/:cat_id',authenticateToken, async (req, res) => {
   const cId = req.params.cat_id;
 
   const validationResult = categoryGetSchema.validate({ cat_id });
@@ -187,7 +200,7 @@ router.get('/category/:cat_id', async (req, res) => {
   }
 });
 
-router.delete('/category/:cat_id', async (req, res) => {
+router.delete('/category/:cat_id', authenticateToken,async (req, res) => {
   const cId = req.params.cat_id;
 
   const validationResult = categoryGetSchema.validate({ cat_id });
@@ -212,7 +225,7 @@ router.delete('/category/:cat_id', async (req, res) => {
   }
 });
 
-router.post('/record', async (req, res) => {
+router.post('/record', authenticateToken,async (req, res) => {
   const { user_id, cat_id, amount } = req.body;
 
   const validationResult = recordSchema.validate({ user_id, cat_id, amount });
@@ -254,7 +267,7 @@ router.post('/record', async (req, res) => {
 });
 
 
-router.get('/records', async (req, res) => {
+router.get('/records',authenticateToken, async (req, res) => {
     
   try {
     const records = await Record.findAll();
@@ -266,7 +279,7 @@ router.get('/records', async (req, res) => {
   }
 });
 
-router.get('/record', async (req, res) => {
+router.get('/record', authenticateToken,async (req, res) => {
   const { user_id, cat_id } = req.query;
 
   try {
@@ -290,7 +303,7 @@ router.get('/record', async (req, res) => {
   }
 });
 
-  router.delete('/record/:rec_id', async (req, res) => {
+  router.delete('/record/:rec_id', authenticateToken,async (req, res) => {
     const rec_id = req.params.rec_id;
   
     try {
@@ -310,7 +323,7 @@ router.get('/record', async (req, res) => {
     }
   });
 
-router.post('/wallet', async (req, res) => {
+router.post('/wallet',authenticateToken, async (req, res) => {
   const { user_id } = req.body;
 
   const validationResult = walletPostSchema.validate({ user_id });
@@ -347,7 +360,7 @@ router.post('/wallet', async (req, res) => {
   }
 });
 
-router.post('/raise/:user_id', async (req, res) => {
+router.post('/raise/:user_id',authenticateToken, async (req, res) => {
   const { user_id } = req.params;
   const { amount } = req.body;
 
@@ -374,7 +387,7 @@ router.post('/raise/:user_id', async (req, res) => {
   }
 });
 
-router.get('/wallets', async (req, res) => {
+router.get('/wallets', authenticateToken,async (req, res) => {
   
   try {
     const wallets = await Wallet.findAll();
@@ -386,7 +399,7 @@ router.get('/wallets', async (req, res) => {
   }
 });
 
-router.get('/wallet/:user_id', async (req, res) => {
+router.get('/wallet/:user_id', authenticateToken,async (req, res) => {
   const { user_id } = req.params;
 
   const validationResult = walletGetSchema.validate({ user_id});
@@ -409,7 +422,7 @@ router.get('/wallet/:user_id', async (req, res) => {
   }
 });
 
-router.delete('/wallet/:user_id', async (req, res) => {
+router.delete('/wallet/:user_id', authenticateToken,async (req, res) => {
   const { user_id } = req.params;
 
   const validationResult = walletGetSchema.validate({ user_id});
