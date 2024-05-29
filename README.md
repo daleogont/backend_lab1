@@ -1,8 +1,4 @@
-# KPI back-end labs
- ## Lab №4
- ### Variant
-
-15 mod 3 = 0, 0 - Облік доходів
+# KPI back-end 
  
 Щоб запустити проект, введіть наступні команди
 ```bash
